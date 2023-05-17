@@ -5,8 +5,6 @@ INTEGER ZV_C,RV_C,AV_C,ZV_G,RV_G,AV_G,ZV_A,RV_A,AV_A
 INTEGER NZ1,NZ1_LASER,NZ2,NUR,NG,NSZ1,NSZ1_LASER,NSZ2,NSR,NSG,PACOTE,DIR,MIST
 INTEGER F_MULT,N_TE,CROSS_SECTION
 INTEGER NR_LASER1,seed,CPART,CTEC,Domb,N_DESV,I_DESV,N_LASER1
-INTEGER Temperatura_gas,Temperatura_superficie_z1,Temperatura_superficie_zN,Temperatura_paredes_laterais
-
 
 REAL*8 II1,TG,DIMZ,DIMR,DIMCG,DELZ,DELR,NP_Z,NP_R,NP,W,TREF,TE,FI,BE,GA,Z,R,AL
 DOUBLE PRECISION Z_C,R_C,AL_C,Z_E,R_E,AL_E,Z_G,R_G,AL_G,ZV1,RV1,ZV_E1,RV_E1,ZV_C1,RV_C1,ZV_G1,RV_G1,K
@@ -78,44 +76,15 @@ PI = ACOS(-1.D0)
 CONT1 = 0
 CONT2 = 0 
 
-N_DESV = 3 !
+N_DESV = 1
 
 
 !DIMENSOES E NUMERO DE ZONAS
 DIMZ =  1.D0 !5.0d0 !1.0D-3   !.2D0
 DIMR =  .2D0 !5.D-3 !20.0D-9   !100.D0
 DIM_ALPHA = 2.D0*PI
+DIMR_LASER1 = .2D0 !DIMR !RAIO DO LASER 
 
-
-!Propriedades das condições de contorno
-Temperatura_superficie_z1=600.d0 ! Temperatura na superficie de entrada do eixo z em Kelvin.
-Temperatura_superficie_zN=600.d0 ! Temperatura na superficie de saida do eixo z em Kelvin.
-Temperatura_paredes_laterais=600.d0 ! Temperatura das paredes laterais obs:nesse caso uniforme para todo o dominio em Kelvin.
-Temperatura_gas=1700.d0 !Temperatura no gas considerando uniforme para todo o dominio de gas em Kelvin
-
-!Propriedades da simulação
-Pacotes_superficies=100000 !Numero de pacotes usados pelo codigo monte-carlo nas superficies
-Pacotes_gas=100 !Numero de pacotes usados pelo codigo monte-calor para as regiões de gas.
-
-
-WRITE(*, '(A,I0)') "Temperatura do gas ", Temperatura_gas
-
-
-!FATOR DE PRECISAO NO CALCULO DA ABSORCAO NO CAMINHO DE GAS
-!QUANTO MAIOR O VALOR DE FAPG MAIOR A PRECISAO
-!OBS: GERALMENTE FAPG=1 GARANTE BOA PRECISAO
-FPAG=1.D0 !CHANGES THE VALUE OF D (A PATH LENGTH STEP SIZE)
-
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
-!%%%%%%%%%%%%%%%%%%%%%PROPRIEDADES REFERENTES AO LASER NÂO ESTÁ SENDO UTILIZADA%%%%%%%%%%%%%!
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
-
-!TAXA DE EMISSAO DO LASER [W] E NUMERO DE PACOTES DE ENERGIA EMITIDOS PELO LASER
-
-DIMR_LASER1 = .2D0 !DIMR !RAIO DO LASER
-Q_LASER1 = 0.d0 !2.d4*A_LASER1
-N_LASER1 = 0
 Z_LASER1 =  0.d0
 R_LASER1 =  0.D0
 AL_LASER1 = 0.D0
@@ -128,6 +97,16 @@ NR = 10
 NA = 1
 
 A_LASER1 = PI*DIMR_LASER1**2.D0
+
+!TAXA DE EMISSAO DO LASER [W] E NUMERO DE PACOTES DE ENERGIA EMITIDOS PELO LASER
+Q_LASER1 = 0.d0 !2.d4*A_LASER1
+N_LASER1 = 0
+
+
+!FATOR DE PRECISAO NO CALCULO DA ABSORCAO NO CAMINHO DE GAS
+!QUANTO MAIOR O VALOR DE FAPG MAIOR A PRECISAO
+!OBS: GERALMENTE FAPG=1 GARENTE BOA PRECISAO
+FPAG=1.D0 !CHANGES THE VALUE OF D (A PATH LENGTH STEP SIZE)
 
 ALLOCATE(DDZ(NZ+2),P_Z(NZ+2))
 ALLOCATE(DDR(NR+2),R_M(NR+2),P_R(NR+2),P_A(NA))
@@ -149,11 +128,9 @@ ALLOCATE(TAXA1(NR,NA),TAXA2(NR,NA),TAXA3(NZ,NA))
 
 !EMISSIVIDADES E CARACTERISTICAS DE REFLEXAO (DIFUSA OU ESPECULAR)
 !DAS SUPERFICIES
-
-
 DO RV=1,NR+2
    DO AV = 1,NA
-      E_M(1,RV,AV)= 1.D0 
+      E_M(1,RV,AV)= .5D0 
       E_M(NZ+2,RV,AV)= 1.D0 
       D_M(1,RV,AV)=0.D0
       D_M(NZ+2,RV,AV)=0.D0
@@ -163,11 +140,12 @@ ENDDO
 
 DO ZV=1,NZ+2
    DO AV=1,NA
-      E_M(ZV,NR+2,AV)= 1.D0
+      E_M(ZV,NR+2,AV)= .2D0
       D_M(ZV,NR+2,AV)= 0.D0
    ENDDO
 ENDDO
 
+EMISSAO = 0.D0
 
 !MIST=1 (10% H2O 10% CO2)
 !MIST=2 (20% H2O 10% CO2)
@@ -200,8 +178,8 @@ G = 0.D0
 
 
 !MiePlot para nanosphere, R = 60 mm, nt =1,45 e lambda = 532 nm
-!Qs =  2.3d0
-!Qa =  2.04d0 
+Qs =  2.3d0
+Qa =  2.04d0 
 
 !MiePlot para nanoshell, R1 = 61.5 mm, R2 = 75 nm, nt =1,45 e lambda = 632.8 nm
 !Qa = 2.26d0
@@ -307,15 +285,17 @@ E0 = 2.D4 ![W/(M^2)]
 ! TEMPERATURAS DAS PAREDES
 DO RV=1,NR+2
    DO AV=1,NA
-      T_M(1,RV,AV)= Temperatura_superficie_z1
-      T_M(NZ+2,RV,AV)= Temperatura_superficie_zN
+      T_M(1,RV,AV)= 0.D0
+      T_M(NZ+2,RV,AV)= 0.D0
    ENDDO
 ENDDO
 
+T_M(1,2,1)= 1000.D0
+
 DO ZV=1,NZ+2
    DO AV=1,NA
-      T_M(ZV,NR+2,AV)= Temperatura_paredes_laterais !0.D0
-      T_M(ZV,1,AV)= Temperatura_paredes_laterais
+      T_M(ZV,NR+2,AV)=0.D0 !0.D0
+      T_M(ZV,1,AV)= 0.d0
    ENDDO
 ENDDO
 
@@ -341,7 +321,7 @@ P_R(NR+2)=DIMR
 DO RV=2,NR+1
    DO ZV=2,NZ+1
       DO AV=1,NA
-         T_M(ZV,RV,AV) = Temperatura_gas
+         T_M(ZV,RV,AV) = 0.D0
       ENDDO
    ENDDO
 ENDDO
@@ -360,28 +340,28 @@ PC=.1D0
 
 DO RV=2,NR+1
    DO AV=1,NA
-      N_Z1_M(1,RV,AV)=Pacotes_superficies
+      N_Z1_M(1,RV,AV)=0
    ENDDO
 ENDDO
 
-!N_Z1_M(1,2,1)=1000000
+N_Z1_M(1,2,1)=1000000
 
 DO RV=2,NR+1
    DO AV=1,NA
-      N_Z2_M(NZ+2,RV,AV)=Pacotes_superficies
+      N_Z2_M(NZ+2,RV,AV)=0
    ENDDO
 ENDDO
 
 DO ZV=2,NZ+1
    DO AV=1,NA
-      N_R_M(ZV,NR+2,AV)=Pacotes_superficies
+      N_R_M(ZV,NR+2,AV)=0
    ENDDO
 ENDDO
 
 DO ZV=2,NZ+1
    DO RV=2,NR+1
       DO AV=1,NA
-         N_G_M(ZV,RV,AV)=Pacotes_gas
+         N_G_M(ZV,RV,AV)=0
       ENDDO
    ENDDO
 ENDDO
@@ -474,6 +454,7 @@ ENDDO
 !***********************************************************************************
 !RESULTADOS  
 !***********************************************************************************
+
 
 
 !***********************************************************************************
@@ -573,6 +554,47 @@ OPEN(31,FILE='./resultados/radiacao'//trim(pindex)//''//trim(tindex)//'.m')
       ENDDO
    WRITE(31,*)'];'
 
+   WRITE(31,*)'EMIT1=['
+      DO ZV=1,NZ+2
+         DO RV=1,NR+2
+            DO AV=1,NA
+              WRITE(31,*)EMIT_M(ZV,RV,AV)
+            ENDDO
+         ENDDO
+      ENDDO
+   WRITE(31,*)'];'
+
+
+   WRITE(31,*)'EAB2=['
+      DO ZV=1,NZ+2
+         DO RV=1,NR+2
+            DO AV=1,NA
+              WRITE(31,*)EAB2(ZV,RV,AV)
+            ENDDO
+         ENDDO
+      ENDDO
+   WRITE(31,*)'];'
+   
+    WRITE(31,*)'A_M1=['
+      DO ZV=1,NZ+2
+         DO RV=1,NR+2
+            DO AV=1,NA
+              WRITE(31,*)A_M(ZV,RV,AV)
+            ENDDO
+         ENDDO
+      ENDDO
+   WRITE(31,*)'];'
+
+
+   WRITE(31,*)'V_M1=['
+      DO ZV=1,NZ+2
+         DO RV=1,NR+2
+            DO AV=1,NA
+              WRITE(31,*)V_M(ZV,RV,AV)
+            ENDDO
+         ENDDO
+      ENDDO
+   WRITE(31,*)'];'
 
    !TROCA DE CALOR NO G�S
     WRITE(31,*)'QB=['
@@ -657,7 +679,48 @@ OPEN(31,FILE='./resultados/radiacao'//trim(pindex)//''//trim(tindex)//'.m')
    WRITE(31,*)'end'
    WRITE(31,*)'end'
 
-
+   WRITE(31,*)'NT=',0,';'
+   WRITE(31,*)'for ZV=',1,':NZ+2'
+   WRITE(31,*)'for RV=',1,':NR+2'
+   WRITE(31,*)'for AV=',1,':NA'
+   WRITE(31,*)'NT=NT+',1,';'
+   WRITE(31,*)'emit(ZV,RV,AV)=EMIT1(NT);'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   
+   WRITE(31,*)'NT=',0,';'
+   WRITE(31,*)'for ZV=',1,':NZ+2'
+   WRITE(31,*)'for RV=',1,':NR+2'
+   WRITE(31,*)'for AV=',1,':NA'
+   WRITE(31,*)'NT=NT+',1,';'
+   WRITE(31,*)'eab(ZV,RV,AV)=EAB2(NT);'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   
+   
+   WRITE(31,*)'NT=',0,';'
+   WRITE(31,*)'for ZV=',1,':NZ+2'
+   WRITE(31,*)'for RV=',1,':NR+2'
+   WRITE(31,*)'for AV=',1,':NA'
+   WRITE(31,*)'NT=NT+',1,';'
+   WRITE(31,*)'a_m(ZV,RV,AV)=A_M1(NT);'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   
+   
+   WRITE(31,*)'NT=',0,';'
+   WRITE(31,*)'for ZV=',1,':NZ+2'
+   WRITE(31,*)'for RV=',1,':NR+2'
+   WRITE(31,*)'for AV=',1,':NA'
+   WRITE(31,*)'NT=NT+',1,';'
+   WRITE(31,*)'v_m(ZV,RV,AV)=V_M1(NT);'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   WRITE(31,*)'end'
+   
    WRITE(31,*)'NT=',0,';'
    WRITE(31,*)'for ZV=',1,':NZ'
    WRITE(31,*)'for RV=',1,':NR'
